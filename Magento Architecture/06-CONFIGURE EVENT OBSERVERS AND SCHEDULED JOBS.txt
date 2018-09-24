@@ -1,0 +1,73 @@
+##CONFIGURE EVENT OBSERVERS AND SCHEDULED JOBS
+
+	POINTS TO REMEMBER
+		• Event observers listen to events that are triggered within Magento.
+		• Event observers should not modify the sent data (what plugins are for).
+
+		Event observers and scheduled jobs are used to carry out tasks on data. They are an ideal way to extend Magento functionality.
+
+		Event observers and scheduled jobs carry a similar characteristic: both do not (should not) modify data as it traverses event observers. A scheduled job makes modifying the flow of data impossible while event observers still do allow it (even though it is against Magento development guidelines).
+		When an action occurs, an event can be triggered. Event observers listen to these events and act as a notification system. Observers implement \Magento\Framework\Event\ObserverInterface.
+
+		If you need to modify the data in a method, it is best to use a before or after plugin.
+
+	Demonstrate how to configure observers.
+		To create an event observer, create the file events.xml in the etc directory. If the event only needs to be listened to in a specific area, create an events.xml in that directory.
+		Create a class that will receive the payload from the event dispatcher. This class must implement \Magento\Framework\Event\ObserverInterface.
+
+	How do you make your observer only be active on the frontend or backend?
+		Place it in the /etc/[area]/events.xml folder.
+
+	Demonstrate how to configure a scheduled job.
+		To execute a specific action on a schedule, you need to setup the crontab.xml file. This file always resides in the /etc folder (not in /etc/[area]).
+
+		Group
+			Magento allows you to group cron activity together, making logical groups of functionality. For most scheduled activity, use the default group. Magento also does provide index group. You can set up configuration options for groups in cron_groups.xml.
+
+		Job
+			Configuring the job is simple:
+				• assign a unique name
+				• specify the class
+				• define a method
+				• set a schedule (using regular crontab schedule notation)
+
+	Which parameters are used in configuration, and how can configuration interact with server configuration?
+		System environment variables can be used to change store configuration information. To change a store configuration value with environment variables:
+			1. Find the store configuration path found in the database, etc/adminhtml/system.xml or the admin panel.
+			2. Change “/” to “__” (double underscores) in the path.
+			3. If this configuration will be set on a global basis (not per store), prepend the path with CONFIG__DEFAULT__.
+			4. If this configuration will be set for a particular website, prepend the path with CONFIG__WEBSITES__[WEBSITE_CODE]__
+
+	Identify the function and proper use of automatically available events, for example *_load_after, etc.
+
+		Magento provides a number of pre-built events. These cover functionality for request routing, data loading, caching, and HTML output.
+
+		One of the most common uses for event listeners / observers is with data loading. For your reference, here is a list of all events triggered in \Magento\Framework\Model\AbstractModel (the parent class of data that is loaded from the database):
+			• $this->_eventPrefix . _load_before
+			• $this->_eventPrefix . _load_after
+			• $this->_eventPrefix . _save_before
+			• $this->_eventPrefix . _save_after
+			• $this->_eventPrefix . _save_commit_after
+			• $this->_eventPrefix . _delete_before
+			• $this->_eventPrefix . _delete_after
+			• $this->_eventPrefix . _delete_commit_after
+			• $this->_eventPrefix . _clear
+
+		$this->_eventPrefix is a protected variable that is set in a model (see vendor/magento/module-catalog/Model/Product.php for an example).
+
+
+	When to use events or plugins?
+		At a fundamental level, the data that is sent to events should not be transformed. 
+		Events should be able to be run completely asynchronously:
+			• You can use the catalog_product_save_commit_after to refresh a static file that you have generated. You could use save_after—the downside is if an uncaught exception is thrown in the observer, the database transaction will be rolled back and data will not be saved. As long as you have product data, this operation can run at any future date.
+			• You can send a notification email when an action has occurred (similar to sending an email when an order is placed).
+
+		 If you want to transform data, use a plugin:
+		 	• If you want to transform data, the Magento technical requirements say to use a plugin. The reason for this is that plugins are designed to modify the flow of data into and out of a method. They wrap and control the data flow. Events could be viewed as the spoke of a bicycle. The data is dispatched to the event listeners. There is no expectation of an order of processing and the data could be handled in different orders at different times.
+		 	• That said, events are still widely used even for data mutations. 
+		 	• If you want to modify data before a product is saved, create an after plugin for the beforeSave method: afterBeforeSave (a little hard to read).
+		 	• If you need to add some additional data when a customer has been loaded, you can do this as an after plugin in the afterLoad method: afterAfterLoad. Ideally, you would be using extension attributes for this purpose as well.
+
+		 To dispatch an event, inject an instance of \Magento\Framework\Event\ManagerInterface into the constructor. Then call:
+		 	$this->eventManager->dispatch('event_name_goes_here', ['parameter' => 'array']);
+

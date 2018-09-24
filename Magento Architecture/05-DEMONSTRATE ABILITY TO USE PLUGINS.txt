@@ -1,0 +1,71 @@
+##DEMONSTRATE ABILITY TO USE PLUGINS
+
+	POINTS TO REMEMBER
+		• There are three types of plugins: around, before and after.
+		• Plugins only work on public methods.
+		• They do not work on final methods, final classes.
+		• They must be configured in di.xml.
+		• Important: plugins can be used on interfaces, abstract classes or parent classes. The plugin methods will be called for any implementation of those abstractions.
+
+	Demonstrate how to design complex solutions using the plugin’s life cycle.
+
+		Keeping methods to a small number of lines of code is sometimes challenging.
+		There are those methods that seem to have to do everything.
+		Magento 2’s idea of plugins brings a completely new idea to the table. Every public method can be intercepted, changed, or even circumvented.
+		There are three types of plugins: around, before, and after. There are some complications with the around plugin, so it is advised to use it sparingly and only when the others will not do. Before plugins modify the input arguments to a method. You can change them to any value. After plugins are used to modify the return value. 
+		Let’s say you have a complex saving operation. In this operation, you also need to validate the input data and return an error when there is a problem. You also need to respond with something more than true or false.
+		You can use an around plugin to validate the incoming request and cancel the save if the result is invalid. Doing this, you are applying the single responsibility principle, making your code easier to understand, debug, and test.
+		While plugins are often thought of as modifying core functionality, that example demonstrates that they can be useful for a broad range of applications.
+
+	How plugins work
+		When you create a plugin entry, Magento automatically generates a class wrapper for the plugin target. For example, if you want to modify \Magento\Catalog\Model\Product, Magento will auto-generate the \Magento\Catalog\Model\Product\Interceptor class. Every function inside the target class will be represented in the auto-generated interceptor class (if you add new functions to a target class, you may need to delete the auto-generated interceptor class from the /generated folder).
+		Magento then handles locating the plugins and executing them in the Interceptor class: vendor/magento/framework/Interception/Interceptor.php
+
+	Before Plugin
+		Example from: \Magento\Catalog\Block\Product\ListProduct
+		If you want to modify the input arguments of a method, create a before plugin. To modify the prepareSortableFieldsByCategory($category) method, add a method to the plugin class.
+		The method above is run before \Magento\Catalog\Block\Product\ListProduct::prepareSortableFieldsByCategory. The return value for the before plugin determines the arguments going into the next plugin or the final targeted method.
+
+	After Plugin
+		Example from: \Magento\Catalog\Block\Product\ListProduct
+
+		If you need to modify the output from a public method, use an after plugin. In our example class, let’s modify the getProductPrice($product). As such in our plugin class, we would create.
+		The after plugin (as of 2.2) includes the input parameters in addition to the return result.
+
+	Around Plugin
+		The around plugin provides full control over the input and output of a function. The original function is passed in as a callback and, by standard, is named $proceed. Magento recommends against using these plugins whenever possible. This is because it is easy to accidentally alter major functions in the system by omitting a call to $proceed(). It also adds frames to the call stack making debugging more cumbersome.
+
+	How do multiple plugins interact, and how can their execution order be controlled?
+		With every good idea come potential downsides. Controlling how multiple plugins interact would be the problem with plugins. When a plugin is declared, the sortOrder attribute can be set. The lower the sort order, the sooner it will be executed in the list. The greater the sort order, the later it will be executed. This allows a degree of control over how one plugin will interact with others.
+		Additionally, if you need to disable an existing plugin, you can reference it by the name attribute and add the disabled attribute.
+
+	How do you debug a plugin if it doesn’t work?
+		First unplug it, then remove the bug.
+		There are a number of things that can go wrong with plugins. Here are some things to check:
+			• Is the di.xml configuration correct? Are there any syntax errors?
+			• Is the plugin marked as disabled?
+			• Do you have the correct class specified in the <type name="..."> node? Is it the target class?
+			• Do you have the correct plugin class specified in the <plugin type="..."> node?
+			• Is the class or method you are modifying marked as final? If so, plugins will	not work.
+			• Does your plugin class have a method to modify a method on the target class?
+			• beforeMethodName or afterMethodName or aroundMethodName
+			• NOT methodName
+			• Do any of the limitations mentioned in the DevDocs apply? 
+
+	One technique that has been helpful for us is to set a breakpoint in the method you want to debug. When that breakpoint has been encountered, look at the call stack to see if there are any references to an Interceptor class in the recent call stack.
+
+	Identify strengths and weaknesses of plugins.
+		Plugins are very powerful to discreetly modify functionality of existing code. They can also be used to follow the single responsibility principle (SRP) by segregating each piece of functionality to their own areas.
+		The greatest weakness is exploited in the hands of a developer who is either not experienced or not willing to take the time to evaluate the fallout. For example, used improperly, an around plugin can prevent the system from functioning. They can also make understanding what is going on by reading source code hard (spooky action at a distance).
+
+	What are the limitations of using plugins for customization?
+		• Plugins only work on public functions (not protected or private).
+		• Plugins do not work on final classes or final methods.
+		• Plugins do not work on static methods.
+		• Read more: http://devdocs.magento.com/guides/v2.1/extension-dev-guide/plugins.html
+
+	In which cases should plugins be avoided?
+		Plugins are useful to modify the input, output, or execution of an existing method. 
+		Plugins are also best to be avoided in situations where an event observer will work. 
+		Events work well when the flow of data does not have to be modified.
+

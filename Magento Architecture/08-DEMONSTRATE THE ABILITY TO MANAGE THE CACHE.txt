@@ -1,0 +1,74 @@
+## DEMONSTRATE THE ABILITY TO MANAGE THE CACHE
+
+	POINTS TO REMEMBER
+		• Understanding the config, layout, block_html, config_ webservice and full_page caches and their functions is important.
+		• You can disable full page caching on a particular page by marking a block as cacheable="false"
+
+	Describe cache types and the tools used to manage caches.
+		Magento includes multiple types of caching to speed retrieval of CPU-consuming calculations and operations. To see a list of all cache types, run bin/magento cache:status.
+
+		Magento 2 includes two means of caching: server caching, Varnish caching and browser caching.
+
+		Cache configuration is stored in /etc/cache.xml. Here is a list of all the cache.xml files in Magento 2.2:
+			• module-eav/etc/cache.xml
+			• module-translation/etc/cache.xml
+			• module-customer/etc/cache.xml
+			• module-webapi/etc/cache.xml
+			• module-page-cache/etc/cache.xml
+			• module-store/etc/cache.xml
+			• module-integration/etc/cache.xml
+
+		You can clear a specific cache by using the bin/magento cache:flush command. For example, the following clears the config and layout caches: bin/magento cache:flush config layout. Here is a list of some of the more important caches:
+			
+			config: Magento Configuration
+				The config cache stores configuration from the XML files along with entries in the core_config_data table. This cache needs to be refreshed when you add system configuration entries (/etc/adminhtml/system.xml) and make XML configuration modifications.
+
+			layout: Layout XML Updates
+				With Magento’s extensive layout configuration, a lot of CPU cycles are used in combining and building these rules. This cache needs to be refreshed when making changes to files in the app/design and the app/code/AcmeWidgets/ProductPromoter/view/[area]/layout folders. For frontend development, we usually disable this cache. This cache type is also used to cache ui_component XML.
+
+			block_html: Output from the toHtml method on a block
+				Obtaining the HTML from a block can also be expensive. Caching at this level allows some of this HTML output to be reused in other locations or pages in the system. For frontend development, we usually disable this cache.
+
+			collections: Multi-row results from database queries
+				This cache stores results from database queries. 
+
+			db_ddl: Database table structure
+				See this file: vendor/magento/framework/DB/Adapter/Pdo/Mysql.php
+
+			config_webservice:
+				This stores the configuration for the REST and SOAP APIs. When adding methods to the API service contracts, you will need to flush this one frequently.
+
+			full_page: Full page cache (FPC)
+				This HTML page output can be stored on the file system (default), database or Redis (fastest). When doing any type of frontend development, it is best to leave the FPC off. Before deploying new frontend updates, though, it is important turn it back on and ensure that the updates do not cause problems with the cache.
+
+
+		How do you add dynamic content to pages served from the full page cache?
+			In Magento 2 FPC, pages are either cached or they are not. To make a page not cacheable, you can add the cacheable="false" attribute to any block on the page. Keep in mind that this affects website performance and should be used sparingly.
+			Combining speed and personalization involves serving a cached page and then substituting or adding content with an AJAX request.
+			The DevDocs contains an article on how to do this with UI Components. This is considered the only “proper” way of hole punching as Magento leverages the browser’s local cache storage system.
+
+		Describe how to operate with cache clearing.
+			When working with the cache, assume that the requested cache entry is not present. If it is not present, run your CPU-intensive operation, and save the results into the cache. Subsequent visits to the cache should be populated and save precious computation time.
+
+		How would you clean the cache?
+			bin/magento cache:clean OR bin/magento cache/flush
+
+		In which case would you refresh cache/flush cache storage?
+			Magento recommends running cache cleaning (cache:clean) operations first as this does not affect other applications that might use the same cache storage. If this does not solve the problem, they recommend flushing the cache storage (cache:flush).
+			In reality, if the file system cache storage is used, you should never have multiple applications' cache storage combined. Sessions and content caching should never share a database in Redis. Ideally, they are stored in altogether separate Redis instances. As such, flushing the cache should not have any consequences.
+
+		Describe how to clear the cache programmatically. 
+			You can clear the cache programmatically by calling the \Magento\Framework\App\CacheInterface::remove() method.
+
+		What mechanisms are available for clearing all or part of the cache?
+
+			clean_cache_by_tags event
+				You can dispatch a clean_cache_by_tags event with an object parameter of the object you want to clear from the cache.
+				From: \Magento\PageCache\Observer\FlushCacheByTags::execute \Magento\Framework\App\CacheInterface->clean()
+				As seen above in “Describe how to clear the cache programmatically.”
+
+			Magento CLI console
+				bin/magento cache/flush or bin/magento cache:clean
+
+			Manually
+				You can rm -rf var/cache/ or use the redis-cli, select a database index, and run flushdb.

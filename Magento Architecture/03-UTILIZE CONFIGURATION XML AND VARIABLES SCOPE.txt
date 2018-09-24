@@ -1,0 +1,73 @@
+##UTILIZE CONFIGURATION XML AND VARIABLES SCOPE
+	
+	Magento’s XML configuration is split across multiple files, depending on the purpose. This helps avoid having one very large configuration file.
+
+	Additionally, Magento 2 supports configuration based on the area. This can be seen in vendor/magento/magento-catalog/etc/ where there are the following folders: adminhtml, frontend, webapi_rest, webapi_soap. The configuration that is in these folders is only loaded if Magento is initialized in that area. For example, when browsing the admin panel, the configuration found in frontend, webapi_rest or webapi_soap is not loaded.
+	We will discuss the more important XML files found in the /etc folder.
+
+		module.xml
+			This is the only required configuration file. It specifies the current module’s version and the module loading order. Example: vendor/magento/module-catalog/etc/config.xml
+		
+		acl.xml
+			This defines the permissions for accessing protected resources. Example: vendor/magento/module-catalog/etc/acl.xml
+
+		config.xml
+			This loads in default configuration in to Store > Configuration. This is also where configuration entries can be marked as encrypted (password). See vendor/magento/module-fedex/etc/config.xml
+
+		crontab.xml
+			This identifies actions that are to occur on a schedule. Example: vendor/magento/module-catalog/etc/crontab.xml
+
+		di.xml
+			This configures dependency injection for your module. This is perhaps the most frequently used file when customizing Magento. Here plugins are defined, class substitutions performed, concrete classes are specified for interfaces, virtual types setup, and constructor arguments can be specified or modified. 
+			It is very important to familiarize yourself with the capabilities of this file. Example: vendor/magento/module-catalog/etc/di.xml
+
+		email_templates.xml
+			Specifies email templates that are used in Magento. The template id is the concatenated XML-style path to where in system configuration template is specified.Example: vendor/magento/module-customer/etc/email_templates.xml
+
+		events.xml
+			This file registers event listeners. This file can often be put into a specific area.Example: vendor/magento/module-catalog/etc/frontend/events.xml
+
+		indexer.xml
+			Configures Magento indexers. Example: vendor/magento/module-catalog/etc/indexer.xml
+
+		adminhtml/menu.xml
+			Configures the menu in the adminhtml area. Example: vendor/magento/module-customer/etc/adminhtml/menu.xml
+
+		mview.xml
+			Triggers a type of event when data is modified in a database column (materialized views). This is most often used for indexing.Example: vendor/magento/module-catalog/etc/mview.xml
+		
+		[area]/routes.xml
+			Tells Magento that this area accepts web requests. The route node configures the first part of the layout handle (route ID) and the front name (first segment in the URL 	after the domain name).
+
+		adminhtml/system.xml
+			Specifies configuration tabs, sections, groups and fields found in Store Configuration. Example: vendor/magento/module-customer/etc/adminhtml/system.xml
+
+		view.xml
+			Similar to config.xml but used for specifying default values for design configuration.Example: vendor/magento/theme-frontend-luma/etc/view.xml
+
+		webapi.xml
+			Configures API access and routes. Example: vendor/magento/module-catalog/etc/webapi.xml
+
+		widget.xml
+			Configures widgets to be used in products, CMS pages, and CMS blocks.Example: vendor/magento/module-catalog/etc/widget.xml
+
+
+	Determine how to use configuration files in Magento
+
+		Magento’s XML configuration is loaded on an as-needed basis. When di.xml is needed, Magento finds all di.xml files and merges them together.
+		Using a configuration file is easy: create that file in the /etc/ folder. Ideally, the file can be limited to a specific area, such as the frontend or adminhtml. Copy an existing file from another module to start with a boilerplate that works.
+		You can also create custom configuration files. Several updates are required to do this:
+			• A XSD defining the schema to validate configuration files.
+			• VirtualType created that extends \Magento\Framework\Config\Reader\Filesystem, specifies the converter, schemaLocator, and fileName.
+			• A Converter class that implements \Magento\Framework\Config\ConverterInterface
+			• A SchemaLocater class that implements \Magento\Framework\Config\SchemaLocatorInterface
+			• A Data class that extends Magento\Framework\Config\Data
+
+	Which configuration files correspond to different features and functionality?
+
+		Mostly detailed above. Some less popular files:
+			• address_formats.xml: the output types for an address
+			• extension_attributes.xml: generic entity extensibility system.
+			• product_options.xml: types of product options (text, file, select, etc.)
+			• product_types.xml: stores product types (simple, configurable, etc.)
+

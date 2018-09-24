@@ -1,0 +1,74 @@
+##DEMONSTRATE HOW TO USE DEPENDENCY INJECTION
+
+	POINTS TO REMEMBER
+		• Dependency injection is a means of giving a class what it needs to function.
+		• ObjectManager is Magento’s internal object storage unit and should rarely be directly accessed.
+		• The ObjectManager makes implementing the Composition over Inheritance principle possible.
+		• Dependency injection makes testing easier, application more configurable and provides options for powerful features such as plugins.
+
+
+	Magento is very customizable. Magento’s Dependency Injection concept embraces that and allows a great deal of control.
+	Dependency Injection is literally injecting what a class’ dependencies are into the constructor or setter methods.
+	Alan Kent has a great article about dependency injection and its benefits.
+	The beauty of dependency injection is that it is very easy to see what your class needs are at a glance. You build your class around the class or interface that you inject. You do not care what class or interface is injected.
+
+	Describe Magento’s dependency injection approach and architecture.
+
+		Magento’s dependency injection framework is unique in that it is very automatic. Many other frameworks require at least some level of configuration to get going. Magento provides ways to customize and adjust dependency injection on the fly as well.
+		Magento uses constructor injection: that is, all of the dependencies are specified as arguments in the __construct() function.
+		Before we continue, I should note that it is very poor practice to directly use the ObjectManager—the primary class that handles dependency inject. It is against Magento standards to do this (exception for only a few cases). 
+
+	We specified a constructor for the above class. We are loading a reference entry to the Registry class. This happens by setting the class type and an argument name on the constructor.		
+	Magento’s DI container holds a list of objects. Each time one is created, it is added into this container. Whenever an object is requested, it is loaded from this container.  In PHP, objects are references. Unless you clone the object, anywhere you pass the object (as an argument) that same object is referenced.
+	For objects that might be time intensive to create, Magento provides proxies. A proxy lazy loads the class. To utilize this, specify a class like \Magento\Catalog\Model\Product\Proxy in di.xml. Proxies must NOT be specified in the __ constructor method.
+	For objects that need to be new every time they are used, Magento uses factories. 
+	To use a factory, specify the class or interface name and append Factory to the end. Like: \Magento\Catalog\Api\Data\ProductInterfaceFactory. Magento will find the preference for the ProductInterface (default is \Magento\Catalog\Model\Product) and create a factory for that class. The factory has one public method, create. Calling this method creates a new instance of the desired class. Magento creates these classes automatically. If you want, you can create factory classes. Here is an example: vendor/magento/module-paypal/Model/IpnFactory.php.
+	For objects that might be time intensive to load, Magento provides proxies. A proxy lazy loads the class. To utilize this, specify a class like \Magento\Catalog\Model\Product\Proxy in the constructor.
+
+
+	How are objects realized in Magento?
+		Since dependency injection happens automatically in the constructor, Magento must handle creating classes. As such, class creation either happens at the time of injection or with a factory.
+
+	Class creation at the time of injection
+		A great way to watch this step-by-step is to set a breakpoint in vendor/magento/framework/App/Router/Base.php::matchAction, on the line that contains $this->actionFactory->create().
+		The first step in the process is the object manager locating the proper class type. If an interface is requested, hopefully an entry in di.xml will provide a concrete class for the interface (if not, an exception will be thrown).
+		The deploy mode (bin/magento deploy:mode:show) determines which class loader is used.
+			• Developer: vendor/magento/framework/ObjectManager/Factory/Dynamic/Developer.php
+			• Production: vendor/magento/framework/ObjectManager/Factory/Dynamic/Production.php
+
+		The parameters for the constructor are loaded. Then those parameters are recursively parsed. Not only are the dependencies for the initially requested class loaded, but dependencies of dependencies as well.
+		A metaphor of this would be a tree. In a tree, you have the trunk and then the branches. The trunk would represent an object type. But that object has dependencies, which continue splitting and going up the tree. Eventually, you have all the branches and all the leaves representing all of the classes (dependencies) that your class needs to perform its functions.
+
+	Class creation with a factory
+		There are some instances where you do not want a shared object. A good example would be when creating new product and persisting that to the database. If you requested an instance of \Magento\Catalog\Api\Data\ProductInterface, that object will be shared with all other requests for that instance. As such, calling any setter methods on this object result in that value being change in all other requests for that instance.
+		If an inject object does not store data in the class (ie. all data is transient and only passes through the class), you likely do not need to load an instance of the class with a factory. If you need to use a class that stores data in the class (for example in the _data array), you likely need to use a factory.
+		Another way of looking at it is instead of calling new ClassName() in the code, inject an instance of ClassNameFactory into the constructor and call $classNameFactory->create() instead.To see Magento auto-created factories, look in the /generated folder. If you need to create a custom factory, feel free to copy one of these as boilerplate, changing the namespace, class name and likely the parameters of the create function.
+
+
+	Why is it important to have a centralized process creating object instances?
+		Having a centralized process to create objects makes testing much easier. It also provides a simple interface to substitute objects as well as modify existing ones.
+
+	Identify how to use DI configuration files for customizing Magento.
+		You should be very familiar with di.xml and how to use it.
+
+	Plugins
+		Plugins allow you to wrap another class’ public functions, add a before method to modify the input arguments, or add an after method to modify the output. These will be discussed more in the next section.Example: vendor/magento/module-catalog/etc/di.xml (search for “plugins”)
+
+	Preferences
+		Preferences are used to substitute entire classes. They can also be used to specify a concrete class for an interface. If you create a service contract for a repository in your /Api folder and a concrete class in /Model, you can create a preference.
+
+	Virtual Types
+		A virtual type allows the developer to create an instance of an existing class that has custom constructor arguments. This is useful in cases where you need a “new” class only because the constructor arguments need to be changed.
+		This is used frequently in Magento to reduce redundant PHP classes.
+
+	Argument Preferences / Constructor Arguments
+		It is possible to modify what objects are injected into specific classes by targeting the name of the argument to associate it with the new class.
+		Now, with Magento 2, you can inject your custom class into any other classes constructor in di.xml
+
+	
+	How can you override a native class, inject your class into another object, and use other techniques available in di.xml (such as virtualTypes)?
+
+		Overriding a native class: use a <preference/> entry to specify the existing class name (preceding backslash \ is optional) and the class to be overridden.
+		Inject your class into another object: use a <type/> entry with a <argument xsi:type="object">\Path\To\Your\Class</argument> entry in the <arguments/> node
+		Other uses of di.xml are found above.
+

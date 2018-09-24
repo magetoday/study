@@ -3,6 +3,10 @@
 
 ##DESCRIBE MAGENTO’S MODULE-BASED ARCHITECTURE
 
+	POINTS TO REMEMBER
+		• There are five areas: adminhtml, frontend, base, webapi_rest, webapi_soap and cron. Not all areas are always available. For instance, the cron area is only used when	running cron jobs.
+		• The three necessary files to bootstrap a module are registration.php, etc/module.xml and composer.json. 
+
 	Modules live in one of two places:
 		• app/code/CompanyName/ModuleName
 		• vendor/vendor-name/module-name
@@ -219,7 +223,14 @@
 			• product_types.xml: stores product types (simple, configurable, etc.)
 
 ##DEMONSTRATE HOW TO USE DEPENDENCY INJECTION
-	
+
+	POINTS TO REMEMBER
+		• Dependency injection is a means of giving a class what it needs to function.
+		• ObjectManager is Magento’s internal object storage unit and should rarely be directly accessed.
+		• The ObjectManager makes implementing the Composition over Inheritance principle possible.
+		• Dependency injection makes testing easier, application more configurable and provides options for powerful features such as plugins.
+
+
 	Magento is very customizable. Magento’s Dependency Injection concept embraces that and allows a great deal of control.
 	Dependency Injection is literally injecting what a class’ dependencies are into the constructor or setter methods.
 	Alan Kent has a great article about dependency injection and its benefits.
@@ -285,4 +296,310 @@
 		Inject your class into another object: use a <type/> entry with a <argument xsi:type="object">\Path\To\Your\Class</argument> entry in the <arguments/> node
 		Other uses of di.xml are found above.
 
-###DEMONSTRATE ABILITY TO USE PLUGINS
+##DEMONSTRATE ABILITY TO USE PLUGINS
+
+	POINTS TO REMEMBER
+		• There are three types of plugins: around, before and after.
+		• Plugins only work on public methods.
+		• They do not work on final methods, final classes.
+		• They must be configured in di.xml.
+		• Important: plugins can be used on interfaces, abstract classes or parent classes. The plugin methods will be called for any implementation of those abstractions.
+
+	Demonstrate how to design complex solutions using the plugin’s life cycle.
+
+		Keeping methods to a small number of lines of code is sometimes challenging.
+		There are those methods that seem to have to do everything.
+		Magento 2’s idea of plugins brings a completely new idea to the table. Every public method can be intercepted, changed, or even circumvented.
+		There are three types of plugins: around, before, and after. There are some complications with the around plugin, so it is advised to use it sparingly and only when the others will not do. Before plugins modify the input arguments to a method. You can change them to any value. After plugins are used to modify the return value. 
+		Let’s say you have a complex saving operation. In this operation, you also need to validate the input data and return an error when there is a problem. You also need to respond with something more than true or false.
+		You can use an around plugin to validate the incoming request and cancel the save if the result is invalid. Doing this, you are applying the single responsibility principle, making your code easier to understand, debug, and test.
+		While plugins are often thought of as modifying core functionality, that example demonstrates that they can be useful for a broad range of applications.
+
+	How plugins work
+		When you create a plugin entry, Magento automatically generates a class wrapper for the plugin target. For example, if you want to modify \Magento\Catalog\Model\Product, Magento will auto-generate the \Magento\Catalog\Model\Product\Interceptor class. Every function inside the target class will be represented in the auto-generated interceptor class (if you add new functions to a target class, you may need to delete the auto-generated interceptor class from the /generated folder).
+		Magento then handles locating the plugins and executing them in the Interceptor class: vendor/magento/framework/Interception/Interceptor.php
+
+	Before Plugin
+		Example from: \Magento\Catalog\Block\Product\ListProduct
+		If you want to modify the input arguments of a method, create a before plugin. To modify the prepareSortableFieldsByCategory($category) method, add a method to the plugin class.
+		The method above is run before \Magento\Catalog\Block\Product\ListProduct::prepareSortableFieldsByCategory. The return value for the before plugin determines the arguments going into the next plugin or the final targeted method.
+
+	After Plugin
+		Example from: \Magento\Catalog\Block\Product\ListProduct
+
+		If you need to modify the output from a public method, use an after plugin. In our example class, let’s modify the getProductPrice($product). As such in our plugin class, we would create.
+		The after plugin (as of 2.2) includes the input parameters in addition to the return result.
+
+	Around Plugin
+		The around plugin provides full control over the input and output of a function. The original function is passed in as a callback and, by standard, is named $proceed. Magento recommends against using these plugins whenever possible. This is because it is easy to accidentally alter major functions in the system by omitting a call to $proceed(). It also adds frames to the call stack making debugging more cumbersome.
+
+	How do multiple plugins interact, and how can their execution order be controlled?
+		With every good idea come potential downsides. Controlling how multiple plugins interact would be the problem with plugins. When a plugin is declared, the sortOrder attribute can be set. The lower the sort order, the sooner it will be executed in the list. The greater the sort order, the later it will be executed. This allows a degree of control over how one plugin will interact with others.
+		Additionally, if you need to disable an existing plugin, you can reference it by the name attribute and add the disabled attribute.
+
+	How do you debug a plugin if it doesn’t work?
+		First unplug it, then remove the bug.
+		There are a number of things that can go wrong with plugins. Here are some things to check:
+			• Is the di.xml configuration correct? Are there any syntax errors?
+			• Is the plugin marked as disabled?
+			• Do you have the correct class specified in the <type name="..."> node? Is it the target class?
+			• Do you have the correct plugin class specified in the <plugin type="..."> node?
+			• Is the class or method you are modifying marked as final? If so, plugins will	not work.
+			• Does your plugin class have a method to modify a method on the target class?
+			• beforeMethodName or afterMethodName or aroundMethodName
+			• NOT methodName
+			• Do any of the limitations mentioned in the DevDocs apply? 
+
+	One technique that has been helpful for us is to set a breakpoint in the method you want to debug. When that breakpoint has been encountered, look at the call stack to see if there are any references to an Interceptor class in the recent call stack.
+
+	Identify strengths and weaknesses of plugins.
+		Plugins are very powerful to discreetly modify functionality of existing code. They can also be used to follow the single responsibility principle (SRP) by segregating each piece of functionality to their own areas.
+		The greatest weakness is exploited in the hands of a developer who is either not experienced or not willing to take the time to evaluate the fallout. For example, used improperly, an around plugin can prevent the system from functioning. They can also make understanding what is going on by reading source code hard (spooky action at a distance).
+
+	What are the limitations of using plugins for customization?
+		• Plugins only work on public functions (not protected or private).
+		• Plugins do not work on final classes or final methods.
+		• Plugins do not work on static methods.
+		• Read more: http://devdocs.magento.com/guides/v2.1/extension-dev-guide/plugins.html
+
+	In which cases should plugins be avoided?
+		Plugins are useful to modify the input, output, or execution of an existing method. 
+		Plugins are also best to be avoided in situations where an event observer will work. 
+		Events work well when the flow of data does not have to be modified.
+
+##CONFIGURE EVENT OBSERVERS AND SCHEDULED JOBS
+
+	POINTS TO REMEMBER
+		• Event observers listen to events that are triggered within Magento.
+		• Event observers should not modify the sent data (what plugins are for).
+
+		Event observers and scheduled jobs are used to carry out tasks on data. They are an ideal way to extend Magento functionality.
+
+		Event observers and scheduled jobs carry a similar characteristic: both do not (should not) modify data as it traverses event observers. A scheduled job makes modifying the flow of data impossible while event observers still do allow it (even though it is against Magento development guidelines).
+		When an action occurs, an event can be triggered. Event observers listen to these events and act as a notification system. Observers implement \Magento\Framework\Event\ObserverInterface.
+
+		If you need to modify the data in a method, it is best to use a before or after plugin.
+
+	Demonstrate how to configure observers.
+		To create an event observer, create the file events.xml in the etc directory. If the event only needs to be listened to in a specific area, create an events.xml in that directory.
+		Create a class that will receive the payload from the event dispatcher. This class must implement \Magento\Framework\Event\ObserverInterface.
+
+	How do you make your observer only be active on the frontend or backend?
+		Place it in the /etc/[area]/events.xml folder.
+
+	Demonstrate how to configure a scheduled job.
+		To execute a specific action on a schedule, you need to setup the crontab.xml file. This file always resides in the /etc folder (not in /etc/[area]).
+
+		Group
+			Magento allows you to group cron activity together, making logical groups of functionality. For most scheduled activity, use the default group. Magento also does provide index group. You can set up configuration options for groups in cron_groups.xml.
+
+		Job
+			Configuring the job is simple:
+				• assign a unique name
+				• specify the class
+				• define a method
+				• set a schedule (using regular crontab schedule notation)
+
+	Which parameters are used in configuration, and how can configuration interact with server configuration?
+		System environment variables can be used to change store configuration information. To change a store configuration value with environment variables:
+			1. Find the store configuration path found in the database, etc/adminhtml/system.xml or the admin panel.
+			2. Change “/” to “__” (double underscores) in the path.
+			3. If this configuration will be set on a global basis (not per store), prepend the path with CONFIG__DEFAULT__.
+			4. If this configuration will be set for a particular website, prepend the path with CONFIG__WEBSITES__[WEBSITE_CODE]__
+
+	Identify the function and proper use of automatically available events, for example *_load_after, etc.
+
+		Magento provides a number of pre-built events. These cover functionality for request routing, data loading, caching, and HTML output.
+
+		One of the most common uses for event listeners / observers is with data loading. For your reference, here is a list of all events triggered in \Magento\Framework\Model\AbstractModel (the parent class of data that is loaded from the database):
+			• $this->_eventPrefix . _load_before
+			• $this->_eventPrefix . _load_after
+			• $this->_eventPrefix . _save_before
+			• $this->_eventPrefix . _save_after
+			• $this->_eventPrefix . _save_commit_after
+			• $this->_eventPrefix . _delete_before
+			• $this->_eventPrefix . _delete_after
+			• $this->_eventPrefix . _delete_commit_after
+			• $this->_eventPrefix . _clear
+
+		$this->_eventPrefix is a protected variable that is set in a model (see vendor/magento/module-catalog/Model/Product.php for an example).
+
+
+	When to use events or plugins?
+		At a fundamental level, the data that is sent to events should not be transformed. 
+		Events should be able to be run completely asynchronously:
+			• You can use the catalog_product_save_commit_after to refresh a static file that you have generated. You could use save_after—the downside is if an uncaught exception is thrown in the observer, the database transaction will be rolled back and data will not be saved. As long as you have product data, this operation can run at any future date.
+			• You can send a notification email when an action has occurred (similar to sending an email when an order is placed).
+
+		 If you want to transform data, use a plugin:
+		 	• If you want to transform data, the Magento technical requirements say to use a plugin. The reason for this is that plugins are designed to modify the flow of data into and out of a method. They wrap and control the data flow. Events could be viewed as the spoke of a bicycle. The data is dispatched to the event listeners. There is no expectation of an order of processing and the data could be handled in different orders at different times.
+		 	• That said, events are still widely used even for data mutations. 
+		 	• If you want to modify data before a product is saved, create an after plugin for the beforeSave method: afterBeforeSave (a little hard to read).
+		 	• If you need to add some additional data when a customer has been loaded, you can do this as an after plugin in the afterLoad method: afterAfterLoad. Ideally, you would be using extension attributes for this purpose as well.
+
+		 To dispatch an event, inject an instance of \Magento\Framework\Event\ManagerInterface into the constructor. Then call:
+		 	$this->eventManager->dispatch('event_name_goes_here', ['parameter' => 'array']);
+
+##UTILIZE THE CLI
+
+	POINTS TO REMEMBER
+		• The Magento CLI is based on the Symfony Console component.
+		• It is important to familiarize yourself with these commands.
+
+	Describe the usage of bin/magento commands in the development cycle.
+		The Magento CLI is the Magento developer’s good friend. It contains many commands to make your life easier.
+
+		Hint: create an alias in .bash_profile like: alias mage="php -d memory_limit=1024M bin/magento". With this, you can enter a Magento 2 directory and type "mage setup-upgrade" instead of typing "bin/magento setupupgrade".
+
+		The Magento CLI is based on the Symfony Console component. If you are interested in building CLI commands, reference this document for helpful information. Additionally, Magento DevDocs provides a tutorial on how to add commands.
+		These next topics will discuss some of the most useful CLI commands in the development process. Note the abbreviations next to some of the commands: this is a feature in Symfony Console.
+		To see the available options for a command, run the command and add --help to the end.
+
+	bin/magento cache:flush (abbreviated bin/magento c:f)
+		Flushes, or destroys, the cache. It is different than cache:clean in that flush actually deletes the keys. The end result is typically the same.
+
+	bin/magento cache:status
+		Lists the cache types and their status (enabled / disabled). This is helpful for toggling caches with the cache:enable / cache:disable command.
+
+	bin/magento deploy:mode:show
+		This command shows the current deploy mode: developer, default, or production. When developing Magento, your life will be much easier if you turn the deploy mode to “developer.”
+
+	bin/magento dev:query-log:enable
+		Turns on logging of database queries. Can be helpful in tracking down an obscure bug. My preference is to use xdebug and set a breakpoint in vendor/magento/framework/Model/ResourceModel/Db/AbstractDb.php as logging can be verbose.
+
+	bin/magento indexer:info AND bin/magento indexer:reindex
+		These commands show indexer details or initiate a reindex respectively. 
+
+	bin/magento module:enable
+		After creating the required module files, you need to enable the module in Magento 2 (Magento 1 did this automatically for you). This is done by running the above command with either the --all flag (enabling all modules) or with appending the name of the module to enable to the above command.
+
+	bin/magento module:status
+		Lists the enabled and disabled modules. If you are having trouble figuring out why a module is not working, this is a good command to put into your troubleshooting repertoire. This has been very helpful to me because it is easy to forget to enable modules.
+
+	bin/magento setup:upgrade
+		When the version of a module (in etc/module.xml) is incremented, you need to run this command to synchronize those changes to the database. Until you do so, your entire frontend and admin panel will show an error message.
+		You can run this command with a --keep-generated flag to prevent the default behavior of removing all generated assets. You can use this flag in a code deploy situation where your assets have already been compiled for the new version.
+
+	bin/magento setup:db:status
+		To check the upgrade status for Magento, use this command. Check the output of this command to determine whether or not you need to upgrade the database (using setup:upgrade).
+
+	Which commands are available?
+		To see what commands are available, execute bin/magento in your command line. 
+		This provides a list of all commands available.
+
+	As of Magento 2.2.3 (March 2018), here is the current list of commands for Magento Open Source:
+		Image follow:
+
+
+	How are commands used in the development cycle?
+		CLI commands provide a secure entry point for conducting operations that could be insecure to run in the Magento admin panel. SSH access should be a secure way to vet a user’s authorization status.
+		Magento provides commands to run tests (dev:tests:run although using PHPUnit in PHPStorm is faster and provides xdebug capabilities), compile dependency injection (setup:di:compile), and deploy static assets (setup:static-content:deploy).
+		Enabling modules and running setup scripts has to be done using the command line during development. It is often quicker to toggle caching of sections or to flush the cache during development using the command line compared to using the admin interface.
+
+	Demonstrate an ability to create a deployment process.
+		Deploying Magento 2 involves several steps. 
+		Publisher’s note: we would like to eventually publish some articles on a build > deploy system that we use at SWIFTotter. Look on our website to see these articlesas we are able to release them.
+
+		The basic steps for deploying Magento 2 code:
+			• Enable maintenance mode
+			• Copy files to the deploy target
+			• Enable modules / apply deploy configuration
+			• Run dependency compilation
+			• Build static assets
+			• Upgrade the database
+			• Disable maintenance mode
+
+
+		As you can see, this process involves downtime for production. For many companies, up to 30 minutes of downtime each deploy is not acceptable. Magento has been actively working to mitigate this. In addition, several community systems are available. Look in the further reading section below.
+
+	How does the application behave in different deployment modes, and how do these behaviors impact the deployment approach for PHP code, frontend assets, etc.?
+		Default (not ideal for production or development, but as a hybrid)
+
+		• Symlinks are established in the pub/static folder. These are linked from files in the app/code or app/design folders.
+		• Exceptions are not displayed to the user (making development very difficult). They are logged in var/log.
+		• Static files are generated on the fly and are symlinked into the var/view_ preprocessed folder.
+
+	Developer mode (security risk if used in production)
+		• Symlinks are established in the pub/static folder. Use dev:staticcontent:deploy to refresh these links or simply remove the stale link manually (much faster).
+		• Errors are shown to the user and logging is verbose. Caution: debug logging is disabled by default even in developer mode.
+		• Magento automatically builds code for plugins (interceptors), factories, etc. as it does in the other modes.
+		• Slow performance.
+
+	Production mode (difficult to use for development)
+		• Static files must be pre-compiled as no compilation will happen on the fly.
+		• Errors are only logged.
+
+## DEMONSTRATE THE ABILITY TO MANAGE THE CACHE
+
+	POINTS TO REMEMBER
+		• Understanding the config, layout, block_html, config_ webservice and full_page caches and their functions is important.
+		• You can disable full page caching on a particular page by marking a block as cacheable="false"
+
+	Describe cache types and the tools used to manage caches.
+		Magento includes multiple types of caching to speed retrieval of CPU-consuming calculations and operations. To see a list of all cache types, run bin/magento cache:status.
+
+		Magento 2 includes two means of caching: server caching, Varnish caching and browser caching.
+
+		Cache configuration is stored in /etc/cache.xml. Here is a list of all the cache.xml files in Magento 2.2:
+			• module-eav/etc/cache.xml
+			• module-translation/etc/cache.xml
+			• module-customer/etc/cache.xml
+			• module-webapi/etc/cache.xml
+			• module-page-cache/etc/cache.xml
+			• module-store/etc/cache.xml
+			• module-integration/etc/cache.xml
+
+		You can clear a specific cache by using the bin/magento cache:flush command. For example, the following clears the config and layout caches: bin/magento cache:flush config layout. Here is a list of some of the more important caches:
+			
+			config: Magento Configuration
+				The config cache stores configuration from the XML files along with entries in the core_config_data table. This cache needs to be refreshed when you add system configuration entries (/etc/adminhtml/system.xml) and make XML configuration modifications.
+
+			layout: Layout XML Updates
+				With Magento’s extensive layout configuration, a lot of CPU cycles are used in combining and building these rules. This cache needs to be refreshed when making changes to files in the app/design and the app/code/AcmeWidgets/ProductPromoter/view/[area]/layout folders. For frontend development, we usually disable this cache. This cache type is also used to cache ui_component XML.
+
+			block_html: Output from the toHtml method on a block
+				Obtaining the HTML from a block can also be expensive. Caching at this level allows some of this HTML output to be reused in other locations or pages in the system. For frontend development, we usually disable this cache.
+
+			collections: Multi-row results from database queries
+				This cache stores results from database queries. 
+
+			db_ddl: Database table structure
+				See this file: vendor/magento/framework/DB/Adapter/Pdo/Mysql.php
+
+			config_webservice:
+				This stores the configuration for the REST and SOAP APIs. When adding methods to the API service contracts, you will need to flush this one frequently.
+
+			full_page: Full page cache (FPC)
+				This HTML page output can be stored on the file system (default), database or Redis (fastest). When doing any type of frontend development, it is best to leave the FPC off. Before deploying new frontend updates, though, it is important turn it back on and ensure that the updates do not cause problems with the cache.
+
+
+		How do you add dynamic content to pages served from the full page cache?
+			In Magento 2 FPC, pages are either cached or they are not. To make a page not cacheable, you can add the cacheable="false" attribute to any block on the page. Keep in mind that this affects website performance and should be used sparingly.
+			Combining speed and personalization involves serving a cached page and then substituting or adding content with an AJAX request.
+			The DevDocs contains an article on how to do this with UI Components. This is considered the only “proper” way of hole punching as Magento leverages the browser’s local cache storage system.
+
+		Describe how to operate with cache clearing.
+			When working with the cache, assume that the requested cache entry is not present. If it is not present, run your CPU-intensive operation, and save the results into the cache. Subsequent visits to the cache should be populated and save precious computation time.
+
+		How would you clean the cache?
+			bin/magento cache:clean OR bin/magento cache/flush
+
+		In which case would you refresh cache/flush cache storage?
+			Magento recommends running cache cleaning (cache:clean) operations first as this does not affect other applications that might use the same cache storage. If this does not solve the problem, they recommend flushing the cache storage (cache:flush).
+			In reality, if the file system cache storage is used, you should never have multiple applications' cache storage combined. Sessions and content caching should never share a database in Redis. Ideally, they are stored in altogether separate Redis instances. As such, flushing the cache should not have any consequences.
+
+		Describe how to clear the cache programmatically. 
+			You can clear the cache programmatically by calling the \Magento\Framework\App\CacheInterface::remove() method.
+
+		What mechanisms are available for clearing all or part of the cache?
+
+			clean_cache_by_tags event
+				You can dispatch a clean_cache_by_tags event with an object parameter of the object you want to clear from the cache.
+				From: \Magento\PageCache\Observer\FlushCacheByTags::execute \Magento\Framework\App\CacheInterface->clean()
+				As seen above in “Describe how to clear the cache programmatically.”
+
+			Magento CLI console
+				bin/magento cache/flush or bin/magento cache:clean
+
+			Manually
+				You can rm -rf var/cache/ or use the redis-cli, select a database index, and run flushdb.

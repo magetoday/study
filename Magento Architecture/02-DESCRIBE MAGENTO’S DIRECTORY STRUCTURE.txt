@@ -1,0 +1,97 @@
+##DESCRIBE MAGENTO’S DIRECTORY STRUCTURE
+	
+	Determine how to locate different types of files in Magento.
+	Magento 2 brings a very flexible system for building and structuring modules. The below answers will be a hybrid of Magento’s practices and the freedom that you now have with naming files and folders.
+	Magento 2’s core files are found in /vendor/magento or /app/code/Magento(only to be used for Magento core code contributions). Some supporting JS and CSS files are found in /lib.
+
+	/Api: Service Contracts
+		The /Api folder stores the contracts for modules that contain specific actions that can be reliably utilized from various places in the app. An example of this would be \Magento\Catalog\Api\CategoryListInterface.
+
+	/Api/Data: Data Service Contacts
+		This folder contains interfaces that represent data. Examples of this would be a Product interface, a Category interface or a Customer interface. The concrete implementations of these interfaces usually do little more than provide getters and setters for data (a.k.a Data Transfer Objects).
+
+	/Block: View Models (or template “assistants”)
+		Very little PHP should be done in templates (separation of responsibilities: see hereand here). As a result, Magento’s blocks perform or provide business logic for the templates. In the MVVM (model, view, view-model) methodology Magento utilizes, Blocks are “View Models.”
+		One problem with inheriting the template block is the constructor is very large. This makes testing and reusability difficult. The answer to this is using a View Model. While View Models live in the Block/ directory, they are very different. A view Model provides the business logic of a block, and not the rendering functionality. This makes another distinction in code where the block is responsible for outputting its contents and the view model handles the logic.
+
+	/Console: Console Commands
+		When running bin/magento on the command line, a list of available commands to run is output. The code for commands should reside in the / Console folder. An example of a console command is for the bin/magento catalog:product-attributes:cleanup command: /vendor/magento/module-catalog/Console/Command/ProductAttributesCleanUp.php.
+
+	/Controller: Web Request Handlers
+		When a page is requested from a Magento website, the path is parsed out and matched to parameters found in routes.xml and files found in the /Controller folder.
+
+	/Controller/Adminhtml: Admin controllers
+		Remember back in the Magento 1 “good-old-days” where all of the Magento adminhtml files were in app/code/core/Mage/Adminhtml (Mage_Adminhtml module)? Thankfully, those days are over with Magento 2. Admin controllers now are spread through their respective and applicable modules.
+
+	/Cron: Cron Job Classes
+		This folder is the standard place for storing actions that are executed on a schedule (cron job). 
+
+	/etc: Configuration files
+		Configuration files are placed here. Examples include: module.xml, crontab. xml, config.xml, webapi.xml, di.xml.
+		Any files directly within the /etc folder are global. The area of those files can be controlled by putting it within a folder with the name of the target area. For example, a di.xml within /etc/frontend would only apply to the front end.
+		Some files have to be within an area folder (e.g. routes.xml and sections. xml), some have to be global (e.g. acl.xml) and some can be global or area specific (e.g. di.xml).
+
+	/Helper: Occasionally useful for small, reusable code
+		With Magento 2, this folder is no longer necessary. However, the core still utilizes this folder for storing actions. In my experience, here are good rules to apply for functionality:
+		Every method should be capable of being declared static (whether or not it is). No transient data (other than injected classes) is stored in a helper class.
+
+	/i18n: Translation CSV Files
+		This is where all a module’s translation CSV files are located. In Magento 1, these were in app/locale/de_DE/. There are CSV files with two columns: From, To
+
+	/Model: Data Handling and Structures
+		In the MVVM acronym, this directory houses the Models. I have found that many classes that are placed in the /Helper folder out to be in /Model. This folder stores anything that is related to the data structure (vendor/magento/module-catalog/Model/Product.php) to loading that data (vendor/magento/module-catalog/Model/ProductRepository.php).
+
+	/Model/ResourceModel: Database Interactions
+		These represent how data is retrieved and saved in the database. Any direct database interaction should happen in these files. Here is an example of the product’s Resource model (vendor/magento/module-catalog/Model/ResourceModel/Product.php).
+
+	/Observer: Event Listeners
+		When Magento fires an event, listeners that are attached to it are called. Thisdecouples the system. Magento Commerce integrates with RabbitMQ which allowseven more control and reliability to this process. Event data should be able to bestored and then run in a queue at a later time.
+		Event listeners must implement the ObserverInterface (\Magento\Framework\Event\ObserverInterface). The observer class should be understandable as the intent of its function. The PHP class should follow the stand of using TitleCase while the event name should be snake_case. Avoid putting business logic into an observer. Put the logic in another location and inject that class into your Observer. When you need to use the logic elsewhere in the system, you will thank yourself.
+
+	/Plugin: Function Modification
+		Plugins are one of the most powerful features in Magento 2. They allow you to modify or change the functionality for almost any class or interface. Plugins only work on objects that are instantiated by the ObjectManager.
+		Plugins can be placed anywhere. Magento puts them in the /Plugins folder which makes them easy to find. I prefer to name the plugin file after the class that I am customizing followed by “Plugin.” If I am modifying a method in \Magento\Catalog\Api\Data\ProductInterface, I would create the following class: /Plugins/Magento/Catalog/ProductPlugin.php. This reduces confusion when you import classes. Another approach is to name Plugins after what they do instead of the class. This makes it easier to locate the correct one when working with the PHPStorm Magento 2 plugin (e.g. MinimumPricePlugin instead of ProductPlugin on a Plugin into Model\Product)
+
+	/Setup: Database Modification
+
+		• InstallSchema.php: sets up table / column schema when the module is installed.
+		• UpgradeSchema.php: modifies table / column schema when the module version is upgraded.
+		• Recurring.php: runs after every install or upgrade.
+		• InstallData.php: sets up data when the module is installed. An example would be adding a custom CMS block.
+		• UpgradeData.php: modifies data after the module is installed, when the module version is upgraded.
+		• RecurringData.php: applies to data after every install or upgrade.
+
+
+	/Test:
+		This houses the module’s tests. /Test/Unit stores unit tests. You can run tests via the command line: bin/magento dev:tests:run [all, unit, integration, integration-all, static, static-all, integrity, legacy, default]
+
+	/Ui: UI Component Data Providers
+		This folder stores the data providers and modifiers for UI components 
+		/view/[area]/layout: Layout XML DirectivesLayout
+		XML links blocks (/Blocks) with templates. It is a very flexible means to control what is displayed where.
+
+	/view/[area]/Templates: Block Templates
+		The counterpart to a Block is a template to render the HTML for the block. While the block (in /Block) represents the business logic, the template represents how the results of the business logic are shown to the user. Again, the best is for as little PHP as possible to go in the templates.
+		When building modules, keep in mind that this folder here is plural “templates.”
+
+	/view/[area]/ui_component: UI Components
+		The checkout on the frontend is also a UI component, but this is configured with layout XML and not UI Component XML. You can also find a /templates folder inside the ui_component folder that contains some templating for UI components
+		This folder contains the XML configuration for UI Components. They are used to represent distinct UI elements, such as grids and forms, and were designed for flexible user interface rendering. Most Magento admin grids (such as the Catalog Product grid and the Customer grid) are composed with UI Components. The checkout on the frontend is also a UI component.
+
+	view/[area]/web: Web Assets
+		This is where the web assets are stored. This includes JS, CSS (or LESS / SCSS), and images.
+
+	/view/[area]/web/template: JS Templates
+		HTML templates which can be asynchronously requested with Javascript (possible using Magento’s customization of KnockoutJS) are placed here. These files often contain KnockoutJS declarative bindings. This folder is singular "template"—which can be confusing as the PHTML and the XHTML template directories are plural. 
+
+	/view/[area]/requirejs-config.js
+		The module’s RequireJS configuration. This configuration is used to control Javascript module dependencies, create aliases, and declare mixins.
+
+	Where are the files containing JavaScript, HTML, and PHP located?
+		JavaScript: in the /view/[area]/web/ folder
+		HTML: in the /view/[area]/templates folder (with .phtml file extensions)
+		PHP: any folder except for /view/[area]/web/
+
+	How do you find the files responsible for certain functionality?
+		The files and folder list above detail out what files are stored where.
+
